@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maritime Video Analysis - SA Layer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a192f;
+            color: #e6f1ff;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #112240, #1d2d50);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #00fff7;
+            margin-bottom: 20px;
+            box-shadow: 0 0 30px rgba(0, 255, 247, 0.2);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            color: #00fff7;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: #8892b0;
+            font-size: 14px;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        .card {
+            background: linear-gradient(135deg, rgba(17, 34, 64, 0.9), rgba(10, 25, 47, 0.95));
+            border: 1px solid rgba(0, 255, 247, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #00fff7;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Upload Section */
+        .upload-zone {
+            border: 2px dashed rgba(0, 255, 247, 0.3);
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 16px;
+        }
+
+        .upload-zone:hover {
+            border-color: #00fff7;
+            background: rgba(0, 255, 247, 0.05);
+        }
+
+        .upload-zone.dragging {
+            border-color: #00ff88;
+            background: rgba(0, 255, 136, 0.1);
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        /* Video Display */
+        #video-frame {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            background: #000;
+            display: none;
+        }
+
+        .video-container {
+            position: relative;
+            margin-bottom: 16px;
+        }
+
+        .video-overlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-family: monospace;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            width: 100%;
+            height: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #00fff7, #00ff88);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 12px 20px;
+            background: rgba(0, 255, 247, 0.1);
+            border: 1px solid #00fff7;
+            border-radius: 6px;
+            color: #00fff7;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover:not(:disabled) {
+            background: #00fff7;
+            color: #0a192f;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn.danger {
+            border-color: #ff3366;
+            color: #ff3366;
+        }
+
+        .btn.danger:hover:not(:disabled) {
+            background: #ff3366;
+            color: #fff;
+        }
+
+        /* Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .stat-box {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid rgba(0, 255, 247, 0.1);
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: #8892b0;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #00fff7;
+            font-family: monospace;
+        }
+
+        /* Alerts */
+        .alerts-container {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .alert {
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            border-left: 4px solid;
+            font-size: 13px;
+        }
+
+        .alert-emergency {
+            background: rgba(255, 51, 102, 0.15);
+            border-color: #ff3366;
+        }
+
+        .alert-critical {
+            background: rgba(255, 184, 0, 0.15);
+            border-color: #ffb800;
+        }
+
+        .alert-warning {
+            background: rgba(255, 184, 0, 0.1);
+            border-color: #ffb800;
+        }
+
+        .alert-info {
+            background: rgba(0, 255, 247, 0.1);
+            border-color: #00fff7;
+        }
+
+        .alert-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .alert-message {
+            font-size: 12px;
+            color: #ccd6f6;
+        }
+
+        /* Status Badge */
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .status-badge.idle {
+            background: rgba(136, 146, 176, 0.2);
+            color: #8892b0;
+        }
+
+        .status-badge.processing {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #00fff7;
+            border-radius: 4px;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #8892b0;
+            font-style: italic;
+        }
+
+        .info-text {
+            color: #8892b0;
+            font-size: 13px;
+            margin-bottom: 16px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚢 Maritime Video Analysis System</h1>
+            <p>Upload maritime video footage to analyze with Situation Awareness Layer</p>
+        </div>
+
+        <div class="main-grid">
+            <!-- Left Column: Video & Upload -->
+            <div>
+                <div class="card">
+                    <div class="card-title">Video Upload & Playback</div>
+                    
+                    <!-- Upload Zone -->
+                    <div class="upload-zone" id="upload-zone">
+                        <div class="upload-icon">📹</div>
+                        <div>
+                            <strong>Click to upload</strong> or drag and drop<br>
+                            <span style="font-size: 12px; color: #8892b0;">
+                                Supported: MP4, AVI, MOV, MKV, WebM (Max 500MB)
+                            </span>
+                        </div>
+                        <input type="file" id="file-input" accept=".mp4,.avi,.mov,.mkv,.webm">
+                    </div>
+
+                    <!-- Status -->
+                    <div>
+                        <span class="status-badge idle" id="status-badge">IDLE</span>
+                    </div>
+
+                    <!-- Video Display -->
+                    <div class="video-container">
+                        <img id="video-frame" src="" alt="Video Frame">
+                        <div class="video-overlay" id="video-overlay" style="display: none;">
+                            Frame: <span id="frame-info">0 / 0</span>
+                        </div>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="progress-container">
+                        <div class="progress-bar" id="progress-bar"></div>
+                    </div>
+
+                    <!-- Controls -->
+                    <div class="controls">
+                        <button class="btn" id="start-btn" disabled>▶ Start Analysis</button>
+                        <button class="btn danger" id="stop-btn" disabled>⏸ Stop</button>
+                        <button class="btn" id="reset-btn" disabled>↻ Reset</button>
+                    </div>
+
+                    <div class="info-text">
+                        Upload a maritime video to begin analysis. The system will extract vessel movements and generate sensor data for the SA layer.
+                    </div>
+                </div>
+
+                <!-- SA Layer Stats -->
+                <div class="card" style="margin-top: 20px;">
+                    <div class="card-title">SA Layer Statistics</div>
+                    <div class="stats-grid">
+                        <div class="stat-box">
+                            <div class="stat-label">Overall Confidence</div>
+                            <div class="stat-value" id="confidence-value">--</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Anomalies Detected</div>
+                            <div class="stat-value" id="anomalies-value">0</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Spoofing Alerts</div>
+                            <div class="stat-value" id="spoofing-value">0</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Active Alerts</div>
+                            <div class="stat-value" id="alerts-value">0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Alerts & Status -->
+            <div>
+                <div class="card">
+                    <div class="card-title">Real-Time Alerts</div>
+                    <div class="alerts-container" id="alerts-container">
+                        <div class="no-data">No alerts yet. Upload and process a video to see alerts.</div>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-top: 20px;">
+                    <div class="card-title">Vessel State</div>
+                    <div class="stats-grid">
+                        <div class="stat-box">
+                            <div class="stat-label">Speed</div>
+                            <div class="stat-value" id="speed-value" style="font-size: 16px;">--</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Course</div>
+                            <div class="stat-value" id="course-value" style="font-size: 16px;">--</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Targets</div>
+                            <div class="stat-value" id="targets-value" style="font-size: 16px;">0</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Position</div>
+                            <div class="stat-value" id="position-value" style="font-size: 11px;">--</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let videoLoaded = false;
+        let isProcessing = false;
+
+        // Elements
+        const uploadZone = document.getElementById('upload-zone');
+        const fileInput = document.getElementById('file-input');
+        const statusBadge = document.getElementById('status-badge');
+        const videoFrame = document.getElementById('video-frame');
+        const videoOverlay = document.getElementById('video-overlay');
+        const progressBar = document.getElementById('progress-bar');
+        const startBtn = document.getElementById('start-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const resetBtn = document.getElementById('reset-btn');
+
+        // Upload handling
+        uploadZone.addEventListener('click', () => fileInput.click());
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                uploadVideo(e.target.files[0]);
+            }
+        });
+
+        // Drag and drop
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragging');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragging');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragging');
+            if (e.dataTransfer.files.length > 0) {
+                uploadVideo(e.dataTransfer.files[0]);
+            }
+        });
+
+        // Upload video
+        async function uploadVideo(file) {
+            const formData = new FormData();
+            formData.append('video', file);
+
+            statusBadge.textContent = 'UPLOADING...';
+            statusBadge.className = 'status-badge processing';
+
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    videoLoaded = true;
+                    statusBadge.textContent = 'VIDEO LOADED';
+                    statusBadge.className = 'status-badge idle';
+                    startBtn.disabled = false;
+                    resetBtn.disabled = false;
+                    videoFrame.style.display = 'block';
+                    uploadZone.style.display = 'none';
+                    alert(`Video uploaded successfully!\nDuration: ${data.duration.toFixed(1)}s\nFrames: ${data.frame_count}`);
+                } else {
+                    alert('Upload failed: ' + data.error);
+                    statusBadge.textContent = 'UPLOAD FAILED';
+                    statusBadge.className = 'status-badge idle';
+                }
+            } catch (error) {
+                alert('Upload error: ' + error.message);
+                statusBadge.textContent = 'ERROR';
+                statusBadge.className = 'status-badge idle';
+            }
+        }
+
+        // Start processing
+        startBtn.addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/start_processing', {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    isProcessing = true;
+                    statusBadge.textContent = 'PROCESSING';
+                    statusBadge.className = 'status-badge processing';
+                    startBtn.disabled = true;
+                    stopBtn.disabled = false;
+                    videoOverlay.style.display = 'block';
+                }
+            } catch (error) {
+                alert('Start error: ' + error.message);
+            }
+        });
+
+        // Stop processing
+        stopBtn.addEventListener('click', async () => {
+            try {
+                await fetch('/api/stop_processing', { method: 'POST' });
+                isProcessing = false;
+                statusBadge.textContent = 'STOPPED';
+                statusBadge.className = 'status-badge idle';
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            } catch (error) {
+                alert('Stop error: ' + error.message);
+            }
+        });
+
+        // Reset
+        resetBtn.addEventListener('click', async () => {
+            try {
+                await fetch('/api/reset', { method: 'POST' });
+                isProcessing = false;
+                progressBar.style.width = '0%';
+                statusBadge.textContent = 'RESET';
+                statusBadge.className = 'status-badge idle';
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            } catch (error) {
+                alert('Reset error: ' + error.message);
+            }
+        });
+
+        // Update display
+        async function updateDisplay() {
+            try {
+                // Get status
+                const statusResponse = await fetch('/api/status');
+                const statusData = await statusResponse.json();
+
+                if (statusData.status === 'no_data') {
+                    return;
+                }
+
+                // Update stats
+                document.getElementById('confidence-value').textContent = 
+                    Math.round(statusData.overall_confidence * 100) + '%';
+                document.getElementById('anomalies-value').textContent = 
+                    statusData.anomalies?.length || 0;
+                document.getElementById('spoofing-value').textContent = 
+                    statusData.spoofing_alerts?.length || 0;
+                document.getElementById('alerts-value').textContent = 
+                    statusData.alerts?.length || 0;
+
+                // Update vessel state
+                const vessel = statusData.fused_data?.vessel_state;
+                if (vessel) {
+                    document.getElementById('speed-value').textContent = 
+                        vessel.speed?.toFixed(1) + ' kn';
+                    document.getElementById('course-value').textContent = 
+                        vessel.course?.toFixed(0) + '°';
+                    document.getElementById('position-value').textContent = 
+                        vessel.position?.latitude?.toFixed(4) + '°N ' +
+                        vessel.position?.longitude?.toFixed(4) + '°E';
+                }
+
+                // Update targets
+                const targets = statusData.fused_data?.targets || [];
+                document.getElementById('targets-value').textContent = targets.length;
+
+                // Update alerts
+                const alertsContainer = document.getElementById('alerts-container');
+                if (statusData.alerts && statusData.alerts.length > 0) {
+                    alertsContainer.innerHTML = statusData.alerts.map(alert => `
+                        <div class="alert alert-${alert.level}">
+                            <div class="alert-title">${alert.title}</div>
+                            <div class="alert-message">${alert.message}</div>
+                        </div>
+                    `).join('');
+                }
+
+                // Update progress
+                if (statusData.progress !== undefined) {
+                    progressBar.style.width = (statusData.progress * 100) + '%';
+                }
+
+                // Get frame
+                if (isProcessing) {
+                    const frameResponse = await fetch('/api/frame');
+                    if (frameResponse.ok) {
+                        const frameData = await frameResponse.json();
+                        videoFrame.src = frameData.frame;
+                    }
+                }
+
+            } catch (error) {
+                console.error('Update error:', error);
+            }
+        }
+
+        // Poll for updates
+        setInterval(updateDisplay, 200);  // 5 Hz update rate
+    </script>
+</body>
+</html>

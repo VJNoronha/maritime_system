@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maritime Situation Awareness Layer</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --navy-deep: #0a192f;
+            --navy-mid: #112240;
+            --navy-light: #1d2d50;
+            --cyan-bright: #00fff7;
+            --cyan-glow: rgba(0, 255, 247, 0.2);
+            --amber-warn: #ffb800;
+            --red-critical: #ff3366;
+            --green-safe: #00ff88;
+            --gray-text: #8892b0;
+            --gray-light: #ccd6f6;
+            --white: #e6f1ff;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, var(--navy-deep) 0%, #051523 100%);
+            color: var(--white);
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        #root {
+            min-height: 100vh;
+        }
+
+        /* Animated radar scan effect background */
+        .radar-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            opacity: 0.03;
+            background: radial-gradient(circle at 50% 50%, var(--cyan-bright) 0%, transparent 50%);
+            animation: radarSweep 8s linear infinite;
+        }
+
+        @keyframes radarSweep {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Maritime grid pattern */
+        .grid-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background-image: 
+                linear-gradient(var(--navy-light) 1px, transparent 1px),
+                linear-gradient(90deg, var(--navy-light) 1px, transparent 1px);
+            background-size: 50px 50px;
+            opacity: 0.15;
+        }
+
+        .dashboard {
+            position: relative;
+            z-index: 1;
+            padding: 20px;
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding: 20px;
+            background: linear-gradient(135deg, var(--navy-mid), var(--navy-light));
+            border-radius: 12px;
+            border: 1px solid var(--cyan-bright);
+            box-shadow: 0 0 30px var(--cyan-glow);
+            animation: slideDown 0.6s ease;
+        }
+
+        @keyframes slideDown {
+            from { transform: translateY(-30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .header-title h1 {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, var(--cyan-bright), var(--green-safe));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px var(--cyan-glow);
+        }
+
+        .pulse-indicator {
+            width: 12px;
+            height: 12px;
+            background: var(--green-safe);
+            border-radius: 50%;
+            animation: pulse 2s ease-in-out infinite;
+            box-shadow: 0 0 15px var(--green-safe);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.2); }
+        }
+
+        .system-status {
+            display: flex;
+            gap: 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+        }
+
+        .status-chip {
+            padding: 6px 14px;
+            background: rgba(0, 255, 247, 0.1);
+            border: 1px solid var(--cyan-bright);
+            border-radius: 20px;
+            color: var(--cyan-bright);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Main Grid */
+        .grid-container {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            animation: fadeIn 0.8s ease 0.2s both;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .left-column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .right-column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* Card base */
+        .card {
+            background: linear-gradient(135deg, rgba(17, 34, 64, 0.9), rgba(10, 25, 47, 0.95));
+            border: 1px solid rgba(0, 255, 247, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            border-color: var(--cyan-bright);
+            box-shadow: 0 0 30px var(--cyan-glow);
+            transform: translateY(-2px);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(0, 255, 247, 0.2);
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--cyan-bright);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Confidence Meter */
+        .confidence-meter {
+            position: relative;
+            height: 120px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .confidence-fill {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            background: linear-gradient(180deg, var(--green-safe), var(--cyan-bright));
+            transition: height 0.5s ease;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+        }
+
+        .confidence-value {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--white);
+            text-shadow: 0 0 20px rgba(0, 255, 247, 0.8);
+        }
+
+        /* Alerts */
+        .alerts-container {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .alert {
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid;
+            font-size: 13px;
+            line-height: 1.5;
+            animation: slideInRight 0.4s ease;
+        }
+
+        @keyframes slideInRight {
+            from { transform: translateX(20px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .alert-emergency {
+            background: rgba(255, 51, 102, 0.15);
+            border-color: var(--red-critical);
+            box-shadow: 0 0 20px rgba(255, 51, 102, 0.3);
+        }
+
+        .alert-critical {
+            background: rgba(255, 184, 0, 0.15);
+            border-color: var(--amber-warn);
+        }
+
+        .alert-warning {
+            background: rgba(255, 184, 0, 0.1);
+            border-color: var(--amber-warn);
+        }
+
+        .alert-info {
+            background: rgba(0, 255, 247, 0.1);
+            border-color: var(--cyan-bright);
+        }
+
+        .alert-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: var(--white);
+        }
+
+        .alert-message {
+            color: var(--gray-light);
+            font-size: 12px;
+        }
+
+        .alert-time {
+            font-size: 11px;
+            color: var(--gray-text);
+            margin-top: 6px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Vessel State */
+        .vessel-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .vessel-item {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid rgba(0, 255, 247, 0.1);
+        }
+
+        .vessel-label {
+            font-size: 11px;
+            color: var(--gray-text);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .vessel-value {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--cyan-bright);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Targets */
+        .targets-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .target-card {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            border: 1px solid rgba(0, 255, 247, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .target-card:hover {
+            background: rgba(0, 255, 247, 0.05);
+            border-color: var(--cyan-bright);
+        }
+
+        .target-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .target-name {
+            font-weight: 600;
+            color: var(--white);
+        }
+
+        .target-distance {
+            color: var(--amber-warn);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+        }
+
+        .target-details {
+            display: flex;
+            gap: 16px;
+            font-size: 12px;
+            color: var(--gray-text);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Scenario Controls */
+        .scenario-controls {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .scenario-btn {
+            flex: 1;
+            padding: 10px 16px;
+            background: rgba(0, 255, 247, 0.1);
+            border: 1px solid var(--cyan-bright);
+            border-radius: 6px;
+            color: var(--cyan-bright);
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .scenario-btn:hover {
+            background: var(--cyan-bright);
+            color: var(--navy-deep);
+            box-shadow: 0 0 20px var(--cyan-glow);
+        }
+
+        .scenario-btn.active {
+            background: var(--cyan-bright);
+            color: var(--navy-deep);
+        }
+
+        /* Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .stat-box {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 16px;
+            border-radius: 6px;
+            text-align: center;
+            border: 1px solid rgba(0, 255, 247, 0.1);
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--cyan-bright);
+            font-family: 'JetBrains Mono', monospace;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: var(--gray-text);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Spoofing Warning */
+        .spoofing-warning {
+            background: linear-gradient(135deg, rgba(255, 51, 102, 0.2), rgba(255, 51, 102, 0.1));
+            border: 2px solid var(--red-critical);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            animation: warningPulse 2s ease-in-out infinite;
+            box-shadow: 0 0 30px rgba(255, 51, 102, 0.5);
+        }
+
+        @keyframes warningPulse {
+            0%, 100% { box-shadow: 0 0 30px rgba(255, 51, 102, 0.5); }
+            50% { box-shadow: 0 0 50px rgba(255, 51, 102, 0.8); }
+        }
+
+        .spoofing-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .spoofing-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--red-critical);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .spoofing-text {
+            color: var(--gray-light);
+        }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 400px;
+            gap: 20px;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(0, 255, 247, 0.2);
+            border-top-color: var(--cyan-bright);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--cyan-bright);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--green-safe);
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .grid-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: var(--gray-text);
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="radar-bg"></div>
+    <div class="grid-overlay"></div>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const API_BASE = 'http://localhost:5000/api';
+
+        function Dashboard() {
+            const [data, setData] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [currentScenario, setCurrentScenario] = useState('normal');
+
+            useEffect(() => {
+                const fetchData = async () => {
+                    try {
+                        const response = await fetch(`${API_BASE}/status`);
+                        const result = await response.json();
+                        setData(result);
+                        setLoading(false);
+                    } catch (error) {
+                        console.error('Error fetching data:', error);
+                    }
+                };
+
+                fetchData();
+                const interval = setInterval(fetchData, 1000);
+                return () => clearInterval(interval);
+            }, []);
+
+            const changeScenario = async (scenario) => {
+                try {
+                    await fetch(`${API_BASE}/scenario/${scenario}`, { method: 'POST' });
+                    setCurrentScenario(scenario);
+                } catch (error) {
+                    console.error('Error changing scenario:', error);
+                }
+            };
+
+            if (loading || !data) {
+                return (
+                    <div className="dashboard">
+                        <div className="loading">
+                            <div className="loading-spinner"></div>
+                            <div>Initializing Situation Awareness Layer...</div>
+                        </div>
+                    </div>
+                );
+            }
+
+            const confidence = Math.round(data.overall_confidence * 100);
+            const hasSpoofing = data.has_spoofing;
+            const alerts = data.alerts || [];
+            const fused = data.fused_data || {};
+            const vessel = fused.vessel_state || {};
+            const targets = fused.targets || [];
+
+            return (
+                <div className="dashboard">
+                    <header className="header">
+                        <div className="header-title">
+                            <div className="pulse-indicator"></div>
+                            <h1>Maritime Situation Awareness Layer</h1>
+                        </div>
+                        <div className="system-status">
+                            <div className="status-chip">OPERATIONAL</div>
+                            <div className="status-chip">{new Date(data.timestamp).toLocaleTimeString()}</div>
+                        </div>
+                    </header>
+
+                    <div className="grid-container">
+                        <div className="left-column">
+                            {/* Spoofing Warning */}
+                            {hasSpoofing && (
+                                <div className="spoofing-warning">
+                                    <div className="spoofing-icon">🚨</div>
+                                    <div className="spoofing-title">Spoofing Attack Detected</div>
+                                    <div className="spoofing-text">
+                                        Navigation sensors may be compromised. Use alternative navigation methods.
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Confidence & Stats */}
+                            <div className="card">
+                                <div className="card-header">
+                                    <div className="card-title">Overall Confidence</div>
+                                </div>
+                                <div className="confidence-meter">
+                                    <div className="confidence-fill" style={{ height: `${confidence}%` }}></div>
+                                    <div className="confidence-value">{confidence}%</div>
+                                </div>
+                                <div className="stats-grid" style={{ marginTop: '16px' }}>
+                                    <div className="stat-box">
+                                        <div className="stat-value">{data.anomalies?.length || 0}</div>
+                                        <div className="stat-label">Anomalies</div>
+                                    </div>
+                                    <div className="stat-box">
+                                        <div className="stat-value">{data.spoofing_alerts?.length || 0}</div>
+                                        <div className="stat-label">Spoofing</div>
+                                    </div>
+                                    <div className="stat-box">
+                                        <div className="stat-value">{alerts.length}</div>
+                                        <div className="stat-label">Alerts</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Vessel State */}
+                            <div className="card">
+                                <div className="card-header">
+                                    <div className="card-title">Vessel State</div>
+                                </div>
+                                <div className="vessel-grid">
+                                    <div className="vessel-item">
+                                        <div className="vessel-label">Position</div>
+                                        <div className="vessel-value" style={{ fontSize: '14px' }}>
+                                            {vessel.position?.latitude?.toFixed(4)}°N<br/>
+                                            {vessel.position?.longitude?.toFixed(4)}°E
+                                        </div>
+                                    </div>
+                                    <div className="vessel-item">
+                                        <div className="vessel-label">Speed</div>
+                                        <div className="vessel-value">{vessel.speed?.toFixed(1)} kn</div>
+                                    </div>
+                                    <div className="vessel-item">
+                                        <div className="vessel-label">Course</div>
+                                        <div className="vessel-value">{vessel.course?.toFixed(0)}°</div>
+                                    </div>
+                                    <div className="vessel-item">
+                                        <div className="vessel-label">Heading</div>
+                                        <div className="vessel-value">{vessel.heading?.toFixed(0)}°</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Alerts */}
+                            <div className="card">
+                                <div className="card-header">
+                                    <div className="card-title">Active Alerts</div>
+                                </div>
+                                <div className="alerts-container">
+                                    {alerts.length === 0 ? (
+                                        <div className="no-data">No active alerts</div>
+                                    ) : (
+                                        alerts.map((alert, i) => (
+                                            <div key={i} className={`alert alert-${alert.level}`}>
+                                                <div className="alert-title">{alert.title}</div>
+                                                <div className="alert-message">{alert.message}</div>
+                                                <div className="alert-time">
+                                                    {new Date(alert.timestamp).toLocaleTimeString()}
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="right-column">
+                            {/* Scenario Controls */}
+                            <div className="card">
+                                <div className="card-header">
+                                    <div className="card-title">Demo Scenarios</div>
+                                </div>
+                                <div className="scenario-controls">
+                                    {['normal', 'collision', 'spoofing', 'anomaly'].map(scenario => (
+                                        <button
+                                            key={scenario}
+                                            className={`scenario-btn ${currentScenario === scenario ? 'active' : ''}`}
+                                            onClick={() => changeScenario(scenario)}
+                                        >
+                                            {scenario}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Targets */}
+                            <div className="card">
+                                <div className="card-header">
+                                    <div className="card-title">Tracked Targets</div>
+                                </div>
+                                <div className="targets-list">
+                                    {targets.length === 0 ? (
+                                        <div className="no-data">No targets detected</div>
+                                    ) : (
+                                        targets.map((target, i) => (
+                                            <div key={i} className="target-card">
+                                                <div className="target-header">
+                                                    <div className="target-name">{target.name || target.target_id}</div>
+                                                    <div className="target-distance">{target.distance?.toFixed(1)} nm</div>
+                                                </div>
+                                                <div className="target-details">
+                                                    <span>CPA: {target.cpa?.toFixed(2)} nm</span>
+                                                    <span>TCPA: {target.tcpa?.toFixed(0)} min</span>
+                                                    <span>SPD: {target.speed?.toFixed(1)} kn</span>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* System Status */}
+                            <div className="card">
+                                <div className="card-header">
+                                    <div className="card-title">Module Status</div>
+                                </div>
+                                <div className="vessel-grid">
+                                    {Object.entries(data.system_status || {}).map(([key, value]) => (
+                                        <div key={key} className="vessel-item">
+                                            <div className="vessel-label">{key.replace('_', ' ')}</div>
+                                            <div className="vessel-value" style={{ 
+                                                fontSize: '14px',
+                                                color: value === 'operational' ? 'var(--green-safe)' : 'var(--amber-warn)'
+                                            }}>
+                                                {value.toUpperCase()}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<Dashboard />, document.getElementById('root'));
+    </script>
+</body>
+</html>
